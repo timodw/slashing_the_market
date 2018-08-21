@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, abort, Response
+import requests
 import datetime as dt
 from datetime import datetime
 import urllib.request
@@ -21,11 +22,13 @@ def get_public_stock_info():
     token = request.form.get('token', None)
     command = request.form.get('command', None)
     text = request.form.get('text', None)
+    response_url = request.form.get('response_url', None)
     symbol = str(text).upper()
 
     stock_text = get_stock_info(symbol)
     data = {"response_type": "in_channel", "text": stock_text}
-    return Response(json.dumps(data), mimetype='application/json')
+    requests.post(response_url, json=data)
+    return ""
 
 
 def get_stock_info(symbol):
