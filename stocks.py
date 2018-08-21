@@ -1,20 +1,33 @@
-from flask import Flask, request, jsonify, abort
+from flask import Flask, request, jsonify, abort, Response
 import datetime as dt
 import urllib.request
 import json
+import secrets
 
 app = Flask(__name__)
 
-@app.route('/stock', methods=["POST"])
-def get_stock_info():
+@app.route('/stockforme', methods=["POST"])
+def get_private_stock_info():
     token = request.form.get('token', None)
     command = request.form.get('command', None)
     text = request.form.get('text', None)
 
+    return get_stock_info(text)
+
+@app.route('/stock', methods=["POST"])
+def get_public_stock_info():
+    token = request.form.get('token', None)
+    command = request.form.get('command', None)
+    text = request.form.get('text', None)
+    
+    stock_text = get_stock_info(text)
+    data = {"response_type": "in_channel", "text": stock_text}
+    return Response(json.dumps(data), mimetype='application/json')
+
+def get_stock_info(symbol):
     function = "TIME_SERIES_INTRADAY"
-    symbol = text
     interval = "1min"
-    key = "4KRGAII8KQ03O9YJ"
+    key = secrets.API_KEY
     response = urllib.request.urlopen("https://www.alphavantage.co/query?function={}&symbol={}&interval={}&apikey={}".format(function, symbol, interval, key)).read().decode('utf-8')
     data = json.loads(response)
     time_series = data["Time Series (1min)"]
