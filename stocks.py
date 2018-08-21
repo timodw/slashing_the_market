@@ -1,10 +1,14 @@
 from flask import Flask, request, jsonify, abort, Response
+from flask_cache import Cache
 import datetime as dt
 import urllib.request
 import json
 import secrets
 
 app = Flask(__name__)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
+CACHE_TIME = 60 * 5 # Five minutes of caching
 
 @app.route('/stockforme', methods=["POST"])
 def get_private_stock_info():
@@ -24,6 +28,7 @@ def get_public_stock_info():
     data = {"response_type": "in_channel", "text": stock_text}
     return Response(json.dumps(data), mimetype='application/json')
 
+@cache.memoize(CACHE_TIME)
 def get_stock_info(symbol):
     function = "TIME_SERIES_INTRADAY"
     interval = "1min"
