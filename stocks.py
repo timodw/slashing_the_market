@@ -36,17 +36,16 @@ def get_public_stock_info():
 
     stock_text = get_stock_info(symbol)
     data = {"response_type": "in_channel", "text": stock_text}
-    requests.post(response_url, json=data)
-    return ""
-
+    return Response(json.dumps(data), mimetype='application/json')
 
 def get_stock_info(symbol):
     try:
         current_stock_value = get_current_value(symbol)
         yesterday_close = get_yesterday_close(symbol)
         change = current_stock_value/yesterday_close * 100 - 100
+        change_emoji = ":chart_with_downwards_trend:" if change < 0 else ":chart_with_upwards_trend:"
 
-        return "*{}*\nCURRENT: {}\nCHANGE: {}%".format(symbol.upper(), current_stock_value, round(change, 2))
+        return "*{}* {}\nCURRENT: {}\nCHANGE: {}%".format(symbol.upper(), change_emoji, current_stock_value, round(change, 2))
     except TickerError:
         return "*{}* could not be found!".format(symbol.upper())
     except RateError:
