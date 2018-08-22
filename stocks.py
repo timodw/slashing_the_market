@@ -8,6 +8,15 @@ import secrets
 
 app = Flask(__name__)
 
+class Error(Exception):
+    pass
+
+class TickerError(Error):
+    pass
+
+class RateError(Error):
+    pass
+
 @app.route('/stockforme', methods=["POST"])
 def get_private_stock_info():
     token = request.form.get('token', None)
@@ -32,11 +41,16 @@ def get_public_stock_info():
 
 
 def get_stock_info(symbol):
-    current_stock_value = get_current_value(symbol)
-    yesterday_close = get_yesterday_close(symbol)
-    change = current_stock_value/yesterday_close * 100 - 100
+    try:
+        current_stock_value = get_current_value(symbol)
+        yesterday_close = get_yesterday_close(symbol)
+        change = current_stock_value/yesterday_close * 100 - 100
 
-    return "*{}*\nCURRENT: {}\nCHANGE: {}%".format(symbol.upper(), current_stock_value, round(change, 2))
+        return "*{}*\nCURRENT: {}\nCHANGE: {}%".format(symbol.upper(), current_stock_value, round(change, 2))
+    except TickerError:
+        return "*{}* could not be found!".format(symbol.upper())
+    except RateError:
+        return "Rate limit reached, please try again later!"
 
 
 intraday_cache = dict()
@@ -49,15 +63,23 @@ def get_current_value(symbol):
         interval = "1min"
         response = urllib.request.urlopen("https://www.alphavantage.co/query?function={}&symbol={}&interval={}&apikey={}".format(function, symbol, interval, secrets.API_KEY)).read().decode('utf-8')
         data = json.loads(response)
-        time_series = data["Time Series (1min)"]
-        timestamps = list(time_series.keys())
-        formated_times = [dt.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") for ts in timestamps]
-        formated_times.sort(reverse=True)
-        str_times = [ts.strftime("%Y-%m-%d %H:%M:%S") for ts in formated_times]
-        last_entry = time_series[str_times[0]]
-        current_stock_value = float(last_entry["4. close"])
-        intraday_cache[symbol] = (datetime.now(), current_stock_value)
-        return current_stock_value
+        if "Information" in data:
+            if symbol in intraday_cache:
+                return intraday_cache[symbol][1]
+            else:
+                raise RateError
+        elif "Error Message" in data:
+            raise TickerError
+        else:
+            time_series = data["Time Series (1min)"]
+            timestamps = list(time_series.keys())
+            formated_times = [dt.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") for ts in timestamps]
+            formated_times.sort(reverse=True)
+            str_times = [ts.strftime("%Y-%m-%d %H:%M:%S") for ts in formated_times]
+            last_entry = time_series[str_times[0]]
+            current_stock_value = float(last_entry["4. close"])
+            intraday_cache[symbol] = (datetime.now(), current_stock_value)
+            return current_stock_value
 
 
 daily_cache = dict()
@@ -69,15 +91,23 @@ def get_yesterday_close(symbol):
         function = "TIME_SERIES_DAILY"
         response = urllib.request.urlopen("https://www.alphavantage.co/query?function={}&symbol={}&apikey={}".format(function, symbol, secrets.API_KEY)).read().decode('utf-8')
         data = json.loads(response)
-        time_series = data["Time Series (Daily)"]
-        timestamps = list(time_series.keys())
-        formated_times = [dt.datetime.strptime(ts, "%Y-%m-%d") for ts in timestamps]
-        formated_times.sort(reverse=True)
-        str_times = [ts.strftime("%Y-%m-%d") for ts in formated_times]
-        yesterday = time_series[str_times[1]]
-        yesterday_close = float(yesterday["4. close"])
-        daily_cache[symbol] = (datetime.today().date(), yesterday_close)
-        return yesterday_close
+        if "Information" in data:
+            if symbol in daily_cache:
+                return daily_cache[symbol][1]
+            else:
+                raise RateError
+        elif "Error Message" in data:
+            raise TickerError
+        else:
+            time_series = data["Time Series (Daily)"]
+            timestamps = list(time_series.keys())
+            formated_times = [dt.datetime.strptime(ts, "%Y-%m-%d") for ts in timestamps]
+            formated_times.sort(reverse=True)
+            str_times = [ts.strftime("%Y-%m-%d") for ts in formated_times]
+            yesterday = time_series[str_times[1]]
+            yesterday_close = float(yesterday["4. close"])
+            daily_cache[symbol] = (datetime.today().date(), yesterday_close)
+            return yesterday_close
 
 
 
