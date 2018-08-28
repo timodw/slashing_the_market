@@ -3,10 +3,13 @@ import requests
 import datetime as dt
 from datetime import datetime
 import urllib.request
+from urllib.request import urlopen
 import json
+from bs4 import BeautifulSoup
 import secrets
 
 app = Flask(__name__)
+yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
 
 class Error(Exception):
     pass
@@ -16,6 +19,10 @@ class TickerError(Error):
 
 class RateError(Error):
     pass
+
+@app.route('/', methods=["GET"])
+def hello():
+    return "<h1>Het is allemaal de schuld van de sossen</h1>"
 
 @app.route('/stockforme', methods=["POST"])
 def get_private_stock_info():
@@ -40,76 +47,43 @@ def get_public_stock_info():
 
 def get_stock_info(symbol):
     try:
-        current_stock_value = get_current_value(symbol)
-        yesterday_close = get_yesterday_close(symbol)
-        change = current_stock_value/yesterday_close * 100 - 100
-        change_emoji = ":chart_with_downwards_trend:" if change < 0 else ":chart_with_upwards_trend:"
+        html = urlopen(yahoo_url.format(symbol, symbol))
+        soup = BeautifulSoup(html, "lxml")
+        current_stock_info = get_current_data(soup)
+        change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
+        pre_market_info = get_pre_market_info(soup)
 
-        return "*{}* {}\nCURRENT: {}\nCHANGE: {}%".format(symbol.upper(), change_emoji, current_stock_value, round(change, 2))
+        return "*{}* {}\nCURRENT: {}\nCHANGE: {}%\n".format(symbol.upper(), change_emoji, current_stock_info[0], round(current_stock_info[1], 2)) + pre_market_info
     except TickerError:
         return "*{}* could not be found!".format(symbol.upper())
     except RateError:
         return "Rate limit reached, please try again later!"
 
-
-intraday_cache = dict()
-def get_current_value(symbol):
-    global intraday_cache
-    if symbol in intraday_cache and datetime.now() - dt.timedelta(seconds=60) < intraday_cache[symbol][0]:
-        return intraday_cache[symbol][1]
+def get_pre_market_info(soup):
+    pre_market_info = get_pre_market_data(soup)
+    if pre_market_info is not None:
+        change_emoji = ":chart_with_downwards_trend:" if pre_market_info[1] < 0 else ":chart_with_upwards_trend:"
+        return "*PRE-MARKET* {}\nCURRENT: {}\nCHANGE: {}%".format(change_emoji, pre_market_info[0], round(pre_market_info[1], 2))
     else:
-        function = "TIME_SERIES_INTRADAY"
-        interval = "1min"
-        response = urllib.request.urlopen("https://www.alphavantage.co/query?function={}&symbol={}&interval={}&apikey={}".format(function, symbol, interval, secrets.API_KEY)).read().decode('utf-8')
-        data = json.loads(response)
-        if "Information" in data:
-            if symbol in intraday_cache:
-                return intraday_cache[symbol][1]
-            else:
-                raise RateError
-        elif "Error Message" in data:
-            raise TickerError
-        else:
-            time_series = data["Time Series (1min)"]
-            timestamps = list(time_series.keys())
-            formated_times = [dt.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") for ts in timestamps]
-            formated_times.sort(reverse=True)
-            str_times = [ts.strftime("%Y-%m-%d %H:%M:%S") for ts in formated_times]
-            last_entry = time_series[str_times[0]]
-            current_stock_value = float(last_entry["4. close"])
-            intraday_cache[symbol] = (datetime.now(), current_stock_value)
-            return current_stock_value
+        return ""
 
-
-daily_cache = dict()
-def get_yesterday_close(symbol):
-    global daily_cache
-    if symbol in daily_cache and datetime.today().date() == daily_cache[symbol][0]:
-        return daily_cache[symbol][1]
+def get_pre_market_data(soup):
+    if len(list(soup.findAll(text="Pre-Market:"))) > 0:
+        values = list(soup.findAll(text="Pre-Market:")[0].parent.parent.parent.children)
+        pre_market_price = float(values[0].text)
+        pre_market_change = float(values[4].text.split(" (")[1][:-2])
+        return (pre_market_price, pre_market_change)
     else:
-        function = "TIME_SERIES_DAILY"
-        response = urllib.request.urlopen("https://www.alphavantage.co/query?function={}&symbol={}&apikey={}".format(function, symbol, secrets.API_KEY)).read().decode('utf-8')
-        data = json.loads(response)
-        if "Information" in data:
-            if symbol in daily_cache:
-                return daily_cache[symbol][1]
-            else:
-                raise RateError
-        elif "Error Message" in data:
-            raise TickerError
-        else:
-            time_series = data["Time Series (Daily)"]
-            timestamps = list(time_series.keys())
-            formated_times = [dt.datetime.strptime(ts, "%Y-%m-%d") for ts in timestamps]
-            formated_times.sort(reverse=True)
-            str_times = [ts.strftime("%Y-%m-%d") for ts in formated_times]
-            yesterday = time_series[str_times[1]]
-            yesterday_close = float(yesterday["4. close"])
-            daily_cache[symbol] = (datetime.today().date(), yesterday_close)
-            return yesterday_close
+        return None
 
-
-
+def get_current_data(soup):
+    if len(soup.findAll(id="quote-market-notice")) > 0:
+        values = list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)
+        current_value = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.parent.children)[0].text)
+        current_change = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)[0].text.split(" (")[1][:-2])
+        return (current_value, current_change)
+    else:
+        raise TickerError
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)
