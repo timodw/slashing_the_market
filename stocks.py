@@ -70,7 +70,7 @@ def get_pre_market_info(soup):
 def get_pre_market_data(soup):
     if len(list(soup.findAll(text="Pre-Market:"))) > 0:
         values = list(soup.findAll(text="Pre-Market:")[0].parent.parent.parent.children)
-        pre_market_price = float(values[0].text)
+        pre_market_price = float(values[0].text.replace(",", ""))
         pre_market_change = float(values[4].text.split(" (")[1][:-2])
         return (pre_market_price, pre_market_change)
     else:
@@ -79,7 +79,7 @@ def get_pre_market_data(soup):
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
         values = list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)
-        current_value = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.parent.children)[0].text)
+        current_value = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.parent.children)[0].text.replace(",", ""))
         current_change = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)[0].text.split(" (")[1][:-2])
         return (current_value, current_change)
     else:
