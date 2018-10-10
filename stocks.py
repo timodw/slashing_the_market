@@ -46,6 +46,19 @@ def get_public_stock_info():
     data = {"response_type": "in_channel", "text": stock_text}
     return Response(json.dumps(data), mimetype='application/json')
 
+@app.route('/graph', methods=["POST"])
+def get_graph():
+    text = request.form.get('text', None)
+    symbol = str(text).upper()
+    data = {"response_type": "in_channel", "text": finviz_url.format(symbol)}
+    return Response(json.dumps(data), mimetype='application/json')
+
+@app.route('/graphforme', methods=["POST"])
+def get_private_graph():
+    text = request.form.get('text', None)
+    symbol = str(text).upper()
+    return finviz_url.format(symbol)
+
 def get_stock_info(symbol):
     try:
         html = urlopen(yahoo_url.format(symbol, symbol))
@@ -56,8 +69,13 @@ def get_stock_info(symbol):
             change_emoji += ":xd:"
         pre_market_info = get_pre_market_info(soup)
 
-        graph_url = finviz_url.format(symbol)
-        return "*{}* {}\nCURRENT: {}\nCHANGE: {}%\n52W LOW: {}\n52W HIGH: {}\n".format(symbol.upper(), change_emoji, current_stock_info[0], round(current_stock_info[1], 2), current_stock_info[2], current_stock_info[3]) + pre_market_info + graph_url
+        return "*{}* {}\nCURRENT: {}\nCHANGE: {}%\n52W LOW: {}\n52W HIGH: {}\n".format( \
+                                                                                        symbol.upper(), \
+                                                                                        change_emoji, \
+                                                                                        current_stock_info[0], \
+                                                                                        round(current_stock_info[1], 2), \
+                                                                                        current_stock_info[2], \
+                                                                                        current_stock_info[3]) + pre_market_info
     except TickerError:
         return "*{}* could not be found!".format(symbol.upper())
     except RateError:
