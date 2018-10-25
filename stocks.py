@@ -10,7 +10,8 @@ import secrets
 
 app = Flask(__name__)
 yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
-finviz_url = "https://finviz.com/chart.ashx?t={}&ty=c&ta=0&p=d&s=l.png"
+finviz_url = "https://finviz.com/chart.ashx?t={}&ty=c&ta=1&p=d&s=l.png"
+earnings_url = "https://whenisearnings.com/{}"
 
 class Error(Exception):
     pass
@@ -68,14 +69,15 @@ def get_stock_info(symbol):
         if symbol == "SNAP":
             change_emoji += ":xd:"
         pre_market_info = get_pre_market_info(soup)
+        ah_info = get_after_hours_info(soup)
 
-        return "*{}* {}\nCURRENT: {}\nCHANGE: {}%\n52W LOW: {}\n52W HIGH: {}\n".format( \
+        return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format( \
                                                                                         symbol.upper(), \
                                                                                         change_emoji, \
                                                                                         current_stock_info[0], \
-                                                                                        round(current_stock_info[1], 2), \
+                                                                                        format_percentage(current_stock_info[1]), \
                                                                                         current_stock_info[2], \
-                                                                                        current_stock_info[3]) + pre_market_info
+                                                                                        current_stock_info[3]) + pre_market_info + ah_info
     except TickerError:
         return "*{}* could not be found!".format(symbol.upper())
     except RateError:
@@ -85,7 +87,15 @@ def get_pre_market_info(soup):
     pre_market_info = get_pre_market_data(soup)
     if pre_market_info is not None:
         change_emoji = ":chart_with_downwards_trend:" if pre_market_info[1] < 0 else ":chart_with_upwards_trend:"
-        return "*PRE-MARKET* {}\nCURRENT: {}\nCHANGE: {}%\n".format(change_emoji, pre_market_info[0], round(pre_market_info[1], 2))
+        return "*PRE-MARKET* {}\nCURRENT: {} *{}%*\n".format(change_emoji, pre_market_info[0], format_percentage(pre_market_info[1]))
+    else:
+        return ""
+
+def get_after_hours_info(soup):
+    ah_info = get_after_hours_data(soup)
+    if ah_info is not None:
+        change_emoji = ":chart_with_downwards_trend:" if ah_info[1] < 0 else ":chart_with_upwards_trend:"
+        return "*AFTER HOURS* {}\nCURRENT: {} *{}%*\n".format(change_emoji, ah_info[0], format_percentage(ah_info[1]))
     else:
         return ""
 
@@ -98,15 +108,27 @@ def get_pre_market_data(soup):
     else:
         return None
 
+def get_after_hours_data(soup):
+    if len(list(soup.findAll(text="After hours:"))) > 0:
+        values = list(soup.findAll(text="After hours:")[0].parent.parent.parent.children)
+        ah_price = float(values[0].text.replace(",", ""))
+        ah_change = float(values[4].text.split(" (")[1][:-2])
+        return (ah_price, ah_change)
+    else:
+        return None
+
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
         values = list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)
         current_value = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.parent.children)[0].text.replace(",", ""))
         current_change = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)[0].text.split(" (")[1][:-2])
-        year_range = [round(float(el), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
+        year_range = [round(float(el.replace(",", "")), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
         return (current_value, current_change, year_range[0], year_range[1])
     else:
         raise TickerError
+
+def format_percentage(percentage):
+    return ("+" if percentage >= 0 else "") + str(round(percentage, 2))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=80)
