@@ -131,4 +131,4 @@ def format_percentage(percentage):
     return ("+" if percentage >= 0 else "") + str(round(percentage, 2))
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=80)
+    app.run(host="0.0.0.0", port=8080)
