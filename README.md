@@ -67,7 +67,7 @@ ln -s /etc/nginx/sites-available/myproject /etc/nginx/sites-enabled
 nginx -t
 systemctl restart nginx
 pip3 install certbot-nginx
-certbot --nginx -d yourodmain -d www.yourodmain -d stocks.yourdomain --hsts --staple-ocsp --must-staple --uir
+certbot --nginx -d yourodmain -d www.yourodmain -d stocks.yourdomain --hsts --staple-ocsp --uir
 ```
 
 let certbot renew your certs daily
