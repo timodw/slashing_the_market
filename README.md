@@ -30,6 +30,8 @@ cp stocks.service /etc/systemd/system/
 mv slashing_the_market /home/stocks/
 dnf install gcc python-devel
 pip3 install wheel uwsgi
+service stocks enable
+service stocks start
 ```
 on your nginx webproxy
 ```
