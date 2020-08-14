@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, abort, Response
+from flask_cache import Cache
 import requests
 import datetime as dt
 from datetime import datetime
@@ -7,6 +8,10 @@ from urllib.request import urlopen
 import json
 from bs4 import BeautifulSoup
 import secrets
+
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
+CACHE_TIME = 60 * 5 # Five minutes of caching
 
 app = Flask(__name__)
 yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
@@ -60,6 +65,7 @@ def get_private_graph():
     symbol = str(text).upper()
     return finviz_url.format(symbol)
 
+@cache.memoize(CACHE_TIME)
 def get_stock_info(symbol):
     try:
         html = urlopen(yahoo_url.format(symbol, symbol))
