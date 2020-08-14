@@ -67,7 +67,7 @@ ln -s /etc/nginx/sites-available/myproject /etc/nginx/sites-enabled
 nginx -t
 systemctl restart nginx
 pip3 install certbot-nginx
-certbot --nginx -d yourodmain -d www.yourodmain -d stocks.yourodmain --hsts
+certbot --nginx -d yourodmain -d www.yourodmain -d stocks.yourodmain --hsts --staple-ocsp
 ```
 
 let certbot renew your certs daily
@@ -77,6 +77,10 @@ crontab -e
 
 
 browse to http://stocks.your_domain
+
+DNS: 
+Don't forget to set a CAA DSN record : @ CAA 0 issue "letsencrypt.org"
+And enable DNSSec
 
 # maintenance
 
