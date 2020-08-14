@@ -7,7 +7,7 @@ This is a slack integrations that provides stock related commands
 - /graph TSLA
    - shows a graph with the TSLA stock price history
    
-# installion
+# installation
 
 ```
 git clone https://github.com/JensTimmerman/slashing_the_market.git
