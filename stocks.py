@@ -24,7 +24,7 @@ class RateError(Error):
 
 @app.route('/', methods=["GET"])
 def hello():
-    return "<h1>Het is allemaal de schuld van de sossen</h1>"
+    return "<h1>slashing the market is running</h1>"
 
 @app.route('/stockforme', methods=["POST"])
 def get_private_stock_info():
