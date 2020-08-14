@@ -35,6 +35,8 @@ service stocks start
 ```
 on your nginx webproxy
 ```
+
+
 vim /etc/nginx/sites-available/stocks
 server {
     listen 80;
@@ -64,8 +66,10 @@ server {
 ln -s /etc/nginx/sites-available/myproject /etc/nginx/sites-enabled
 nginx -t
 systemctl restart nginx
-
+pip3 install certbot-nginx
+certbot --nginx -d yourodmain -d www.yourodmain -d stocks.yourodmain --hsts
 ```
+
 browse to http://stocks.your_domain
 
 # maintenance
