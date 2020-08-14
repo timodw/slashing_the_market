@@ -68,7 +68,7 @@ browse to http://stocks.your_domain
 
 # maintenance
 
-Regularly check this repo for fixes
-run a cron job that updates your pip dependencies 
- - crontab -e 
+- Regularly check this repo for fixes
+- run a cron job that updates your pip dependencies 
+  - crontab -e 
     - `0 8 * * * pip3 list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip3 install -U`
