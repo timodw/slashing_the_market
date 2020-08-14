@@ -16,7 +16,7 @@ pip3 install -r requirements.txt
 python3 stocks.py
 ```
 ```
-echo TSLA| POST http://127.0.0.1:8080/stock -E
+echo text=TSLA| POST http://127.0.0.1:8080/stock -E
 ```
 
 # installation
