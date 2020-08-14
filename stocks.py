@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, abort, Response
-from flask_cache import Cache
+from flask_caching import Cache
 import requests
 import datetime as dt
 from datetime import datetime
@@ -9,11 +9,12 @@ import json
 from bs4 import BeautifulSoup
 import secrets
 
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 CACHE_TIME = 60 * 5 # Five minutes of caching
 
 app = Flask(__name__)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
 yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
 finviz_url = "https://finviz.com/chart.ashx?t={}&ty=c&ta=1&p=d&s=l.png"
 earnings_url = "https://whenisearnings.com/{}"
