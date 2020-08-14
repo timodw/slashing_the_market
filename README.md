@@ -60,6 +60,7 @@ ln -s /etc/nginx/sites-available/myproject /etc/nginx/sites-enabled
 nginx -t
 systemctl restart nginx
 
+```
 browse to http://stocks.your_domain
 
 # maintenance
