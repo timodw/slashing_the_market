@@ -42,7 +42,7 @@ server {
     location / {
         include uwsgi_params;
         # use this if you run on same machine (also edit socks.ini )
-        #uwsgi_pass unix:/home/sammy/myproject/myproject.sock;
+        #uwsgi_pass unix:/home/stocks/slashing_the_market/stocks.sock;
           proxy_pass http://192.168.1.106:8080;
           proxy_redirect off ;
           proxy_set_header Host $host ;
