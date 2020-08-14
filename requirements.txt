@@ -2,3 +2,4 @@ flask
 flask_caching
 requests
 beautifulsoup4
+lxml
