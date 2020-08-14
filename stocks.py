@@ -8,11 +8,13 @@ from urllib.request import urlopen
 import json
 from bs4 import BeautifulSoup
 import secrets
+import re
 
 
 CACHE_TIME = 60 * 5 # Five minutes of caching
 
 app = Flask(__name__)
+
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
@@ -126,9 +128,10 @@ def get_after_hours_data(soup):
 
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
-        values = list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)
-        current_value = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.parent.children)[0].text.replace(",", ""))
-        current_change = float(list(list(soup.findAll(id="quote-market-notice"))[0].parent.children)[0].text.split(" (")[1][:-2])
+        values = re.findall('([0-9,.]+)+', soup.findAll(id="quote-market-notice")[0].parent.text)
+        current_value = float(values[0].replace(",", ""))
+        current_change = float(values[2])
+
         year_range = [round(float(el.replace(",", "")), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
         return (current_value, current_change, year_range[0], year_range[1])
     else:
