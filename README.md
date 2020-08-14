@@ -70,6 +70,12 @@ pip3 install certbot-nginx
 certbot --nginx -d yourodmain -d www.yourodmain -d stocks.yourodmain --hsts
 ```
 
+let certbot renew your certs daily
+crontab -e
+  - `18 6 * * * certbot renew --post-hook "systemctl reload nginx"`
+
+
+
 browse to http://stocks.your_domain
 
 # maintenance
