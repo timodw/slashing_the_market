@@ -12,7 +12,7 @@ This is a slack integrations that provides stock related commands
 ```
 git clone https://github.com/JensTimmerman/slashing_the_market.git
 cd slashing_the_market
-pip3 install requirements.txt
+pip3 install -r requirements.txt
 python3 stocks.py
 ```
 
