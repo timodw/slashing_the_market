@@ -78,7 +78,6 @@ def get_stock_info(symbol):
         if symbol == "SNAP":
             change_emoji += ":xd:"
         pre_market_info = get_pre_market_info(soup)
-        ah_info = get_after_hours_info(soup)
 
         return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format( \
                                                                                         symbol.upper(), \
@@ -86,45 +85,27 @@ def get_stock_info(symbol):
                                                                                         current_stock_info[0], \
                                                                                         format_percentage(current_stock_info[1]), \
                                                                                         current_stock_info[2], \
-                                                                                        current_stock_info[3]) + pre_market_info + ah_info
+                                                                                        current_stock_info[3]) + pre_market_info
     except TickerError:
         return "*{}* could not be found!".format(symbol.upper())
     except RateError:
         return "Rate limit reached, please try again later!"
 
 def get_pre_market_info(soup):
-    pre_market_info = get_pre_market_data(soup)
-    if pre_market_info is not None:
-        change_emoji = ":chart_with_downwards_trend:" if pre_market_info[1] < 0 else ":chart_with_upwards_trend:"
-        return "*PRE-MARKET* {}\nCURRENT: {} *{}%*\n".format(change_emoji, pre_market_info[0], format_percentage(pre_market_info[1]))
+    if 'Before hours:' in soup.text:
+        pre = 'Before hours'
+    elif 'After hours:' in soup.text:
+        pre = 'After hours'
     else:
         return ""
 
-def get_after_hours_info(soup):
-    ah_info = get_after_hours_data(soup)
-    if ah_info is not None:
-        change_emoji = ":chart_with_downwards_trend:" if ah_info[1] < 0 else ":chart_with_upwards_trend:"
-        return "*AFTER HOURS* {}\nCURRENT: {} *{}%*\n".format(change_emoji, ah_info[0], format_percentage(ah_info[1]))
-    else:
-        return ""
+    values = list(soup.findAll(text="%s:" % pre)[0].parent.parent.parent.children)
+    print(values)
+    pre_market_price = float(values[0].text.replace(",", ""))
+    pre_market_change = float(values[4].text.split(" (")[1][:-2])
+    change_emoji = ":chart_with_downwards_trend:" if pre_market_change < 0 else ":chart_with_upwards_trend:"
+    return "*{}* {}\nCURRENT: {} *{}%*\n".format(pre, change_emoji, pre_market_price, format_percentage(pre_market_change))
 
-def get_pre_market_data(soup):
-    if len(list(soup.findAll(text="Pre-Market:"))) > 0:
-        values = list(soup.findAll(text="Pre-Market:")[0].parent.parent.parent.children)
-        pre_market_price = float(values[0].text.replace(",", ""))
-        pre_market_change = float(values[4].text.split(" (")[1][:-2])
-        return (pre_market_price, pre_market_change)
-    else:
-        return None
-
-def get_after_hours_data(soup):
-    if len(list(soup.findAll(text="After hours:"))) > 0:
-        values = list(soup.findAll(text="After hours:")[0].parent.parent.parent.children)
-        ah_price = float(values[0].text.replace(",", ""))
-        ah_change = float(values[4].text.split(" (")[1][:-2])
-        return (ah_price, ah_change)
-    else:
-        return None
 
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
