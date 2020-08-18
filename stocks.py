@@ -21,6 +21,17 @@ yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
 finviz_url = "https://finviz.com/chart.ashx?t={}&ty=c&ta=1&p=d&s=l.png"
 earnings_url = "https://whenisearnings.com/{}"
 
+
+# map things people might try to the correct symbol
+symbolmap = {
+    'EUR': 'EURUSD=X',
+    'USD': 'USDEUR=X',
+    'EUR/USD': 'EURUSD=X',
+    'USD/EUR': 'USDEUR=X',
+    'TESLA': 'TSLA',
+    'BTC': 'BTC-USD',
+}
+
 class Error(Exception):
     pass
 
@@ -39,7 +50,7 @@ def get_private_stock_info():
     token = request.form.get('token', None)
     command = request.form.get('command', None)
     text = request.form.get('text', None)
-    symbol = str(text).upper()
+    symbol = str(text)
 
     return get_stock_info(symbol)
 
@@ -49,7 +60,7 @@ def get_public_stock_info():
     command = request.form.get('command', None)
     text = request.form.get('text', None)
     response_url = request.form.get('response_url', None)
-    symbol = str(text).upper()
+    symbol = str(text)
 
     stock_text = get_stock_info(symbol)
     data = {"response_type": "in_channel", "text": stock_text}
@@ -70,6 +81,9 @@ def get_private_graph():
 
 @cache.memoize(CACHE_TIME)
 def get_stock_info(symbol):
+    symbol = symbol.upper()
+    if symbol in symbolmap:
+        symbol = symbolmap[symbol]
     try:
         html = urlopen(yahoo_url.format(symbol, symbol))
         soup = BeautifulSoup(html, "lxml")
@@ -77,17 +91,21 @@ def get_stock_info(symbol):
         change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
         if symbol == "SNAP":
             change_emoji += ":xd:"
-        pre_market_info = get_pre_market_info(soup)
+        try:
+            pre_market_info = get_pre_market_info(soup)
+        except:
+            print('error getting pre market info')
 
-        return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format( \
-                                                                                        symbol.upper(), \
-                                                                                        change_emoji, \
-                                                                                        current_stock_info[0], \
-                                                                                        format_percentage(current_stock_info[1]), \
-                                                                                        current_stock_info[2], \
-                                                                                        current_stock_info[3]) + pre_market_info
+        return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format(
+            symbol,
+            change_emoji,
+            current_stock_info[0],
+            format_percentage(current_stock_info[1]),
+            current_stock_info[2],
+            current_stock_info[3]) + pre_market_info
+
     except TickerError:
-        return "*{}* could not be found!".format(symbol.upper())
+        return "*{}* could not be found!".format(symbol)
     except RateError:
         return "Rate limit reached, please try again later!"
 
@@ -104,8 +122,8 @@ def get_pre_market_info(soup):
     pre_market_price = float(values[0].text.replace(",", ""))
     pre_market_change = float(values[4].text.split(" (")[1][:-2])
     change_emoji = ":chart_with_downwards_trend:" if pre_market_change < 0 else ":chart_with_upwards_trend:"
-    return "*{}* {}\nCURRENT: {} *{}%*\n".format(pre, change_emoji, pre_market_price, format_percentage(pre_market_change))
-
+    return "*{}* {}\nCURRENT: {} *{}%*\n".format(pre, change_emoji, pre_market_price,
+                                                 format_percentage(pre_market_change))
 
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
