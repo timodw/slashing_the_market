@@ -127,7 +127,8 @@ def get_pre_market_info(soup):
 
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
-        values = re.findall('([0-9,.]+)+', soup.findAll(id="quote-market-notice")[0].parent.text)
+        values = re.findall('([-+]?[0-9,.]+)', soup.findAll(id="quote-market-notice")[0].parent.text)
+        # values 0 is current price, then absolute change, then procentual change then ??, ??
         current_value = float(values[0].replace(",", ""))
         current_change = float(values[2])
 
