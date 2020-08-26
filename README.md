@@ -17,6 +17,7 @@ python3 stocks.py
 ```
 ```
 echo -n text=TSLA| POST http://127.0.0.1:8080/stock -E
+echo -n text=EUR/USD| POST http://127.0.0.1:8080/stock -E
 ```
 
 # installation
