@@ -30,7 +30,13 @@ symbolmap = {
     'USD/EUR': 'USDEUR=X',
     'TESLA': 'TSLA',
     'BTC': 'BTC-USD',
+    'BITCOIN': 'BTC-USD',
+    'NSDQ': '^IXIC',
+    'NDSQ': '^IXIC',
+    'NASDAQ': '^IXIC',
+    'PFIZER': 'PFE',
 }
+
 
 class Error(Exception):
     pass
