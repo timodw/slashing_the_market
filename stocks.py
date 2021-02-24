@@ -21,6 +21,23 @@ yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
 finviz_url = "https://finviz.com/chart.ashx?t={}&ty=c&ta=1&p=d&s=l.png"
 earnings_url = "https://whenisearnings.com/{}"
 
+
+# map things people might try to the correct symbol
+symbolmap = {
+    'EUR': 'EURUSD=X',
+    'USD': 'USDEUR=X',
+    'EUR/USD': 'EURUSD=X',
+    'USD/EUR': 'USDEUR=X',
+    'TESLA': 'TSLA',
+    'BTC': 'BTC-USD',
+    'BITCOIN': 'BTC-USD',
+    'NSDQ': '^IXIC',
+    'NDSQ': '^IXIC',
+    'NASDAQ': '^IXIC',
+    'PFIZER': 'PFE',
+}
+
+
 class Error(Exception):
     pass
 
@@ -39,7 +56,7 @@ def get_private_stock_info():
     token = request.form.get('token', None)
     command = request.form.get('command', None)
     text = request.form.get('text', None)
-    symbol = str(text).upper()
+    symbol = str(text)
 
     return get_stock_info(symbol)
 
@@ -49,7 +66,7 @@ def get_public_stock_info():
     command = request.form.get('command', None)
     text = request.form.get('text', None)
     response_url = request.form.get('response_url', None)
-    symbol = str(text).upper()
+    symbol = str(text)
 
     stock_text = get_stock_info(symbol)
     data = {"response_type": "in_channel", "text": stock_text}
@@ -70,6 +87,9 @@ def get_private_graph():
 
 @cache.memoize(CACHE_TIME)
 def get_stock_info(symbol):
+    symbol = symbol.upper()
+    if symbol in symbolmap:
+        symbol = symbolmap[symbol]
     try:
         html = urlopen(yahoo_url.format(symbol, symbol))
         soup = BeautifulSoup(html, "lxml")
@@ -77,58 +97,46 @@ def get_stock_info(symbol):
         change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
         if symbol == "SNAP":
             change_emoji += ":xd:"
-        pre_market_info = get_pre_market_info(soup)
-        ah_info = get_after_hours_info(soup)
+        try:
+            pre_market_info = get_pre_market_info(soup)
+        except:
+            print('error getting pre market info')
 
-        return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format( \
-                                                                                        symbol.upper(), \
-                                                                                        change_emoji, \
-                                                                                        current_stock_info[0], \
-                                                                                        format_percentage(current_stock_info[1]), \
-                                                                                        current_stock_info[2], \
-                                                                                        current_stock_info[3]) + pre_market_info + ah_info
+        return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format(
+            symbol,
+            change_emoji,
+            current_stock_info[0],
+            format_percentage(current_stock_info[1]),
+            current_stock_info[2],
+            current_stock_info[3]) + pre_market_info
+
     except TickerError:
-        return "*{}* could not be found!".format(symbol.upper())
+        return "*{}* could not be found!".format(symbol)
     except RateError:
         return "Rate limit reached, please try again later!"
 
 def get_pre_market_info(soup):
-    pre_market_info = get_pre_market_data(soup)
-    if pre_market_info is not None:
-        change_emoji = ":chart_with_downwards_trend:" if pre_market_info[1] < 0 else ":chart_with_upwards_trend:"
-        return "*PRE-MARKET* {}\nCURRENT: {} *{}%*\n".format(change_emoji, pre_market_info[0], format_percentage(pre_market_info[1]))
+    if 'Before hours:' in soup.text:
+        pre = 'Before hours'
+    elif 'Pre-Market:' in soup.text:
+        pre = 'Pre-Market'
+    elif 'After hours:' in soup.text:
+        pre = 'After hours'
     else:
         return ""
 
-def get_after_hours_info(soup):
-    ah_info = get_after_hours_data(soup)
-    if ah_info is not None:
-        change_emoji = ":chart_with_downwards_trend:" if ah_info[1] < 0 else ":chart_with_upwards_trend:"
-        return "*AFTER HOURS* {}\nCURRENT: {} *{}%*\n".format(change_emoji, ah_info[0], format_percentage(ah_info[1]))
-    else:
-        return ""
-
-def get_pre_market_data(soup):
-    if len(list(soup.findAll(text="Pre-Market:"))) > 0:
-        values = list(soup.findAll(text="Pre-Market:")[0].parent.parent.parent.children)
-        pre_market_price = float(values[0].text.replace(",", ""))
-        pre_market_change = float(values[4].text.split(" (")[1][:-2])
-        return (pre_market_price, pre_market_change)
-    else:
-        return None
-
-def get_after_hours_data(soup):
-    if len(list(soup.findAll(text="After hours:"))) > 0:
-        values = list(soup.findAll(text="After hours:")[0].parent.parent.parent.children)
-        ah_price = float(values[0].text.replace(",", ""))
-        ah_change = float(values[4].text.split(" (")[1][:-2])
-        return (ah_price, ah_change)
-    else:
-        return None
+    values = list(soup.findAll(text="%s:" % pre)[0].parent.parent.parent.children)
+    print(values)
+    pre_market_price = float(values[0].text.replace(",", ""))
+    pre_market_change = float(values[4].text.split(" (")[1][:-2])
+    change_emoji = ":chart_with_downwards_trend:" if pre_market_change < 0 else ":chart_with_upwards_trend:"
+    return "*{}* {}\nCURRENT: {} *{}%*\n".format(pre, change_emoji, pre_market_price,
+                                                 format_percentage(pre_market_change))
 
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
-        values = re.findall('([0-9,.]+)+', soup.findAll(id="quote-market-notice")[0].parent.text)
+        values = re.findall('([-+]?[0-9,.]+)', soup.findAll(id="quote-market-notice")[0].parent.text)
+        # values 0 is current price, then absolute change, then procentual change then ??, ??
         current_value = float(values[0].replace(",", ""))
         current_change = float(values[2])
 
