@@ -118,6 +118,8 @@ def get_stock_info(symbol):
 def get_pre_market_info(soup):
     if 'Before hours:' in soup.text:
         pre = 'Before hours'
+    elif 'Pre-Market:' in soup.text:
+        pre = 'Pre-Market'
     elif 'After hours:' in soup.text:
         pre = 'After hours'
     else:
