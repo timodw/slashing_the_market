@@ -38,6 +38,7 @@ symbolmap = {
     'PFIZER': 'PFE',
 }
 
+
 class Error(Exception):
     pass
 
@@ -130,7 +131,7 @@ def get_stock_info(symbol, recurse=True):
 def get_pre_market_info(soup):
     if 'Before hours:' in soup.text:
         pre = 'Before hours'
-    if 'Pre-Market' in soup.text:
+    elif 'Pre-Market:' in soup.text:
         pre = 'Pre-Market'
     elif 'After hours:' in soup.text:
         pre = 'After hours'
