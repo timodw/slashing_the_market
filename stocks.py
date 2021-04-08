@@ -38,6 +38,9 @@ symbolmap = {
     'PFIZER': 'PFE',
 }
 
+# keep al ist of working symbols
+working = []
+
 class Error(Exception):
     pass
 
@@ -49,7 +52,7 @@ class RateError(Error):
 
 @app.route('/', methods=["GET"])
 def hello():
-    return "<h1>slashing the market is running</h1>" + get_stock_info('tsla')
+    return "<h1>slashing the market is running</h1>" + get_stock_info('TSLA')
 
 @app.route('/stockforme', methods=["POST"])
 def get_private_stock_info():
@@ -60,6 +63,11 @@ def get_private_stock_info():
     symbol = str(text)
     print(str(command), symbol)
 
+    # do the symbol mapping here, it makes the smart working not working thing work before the cache
+    symbol = symbol.upper()
+    if symbol in symbolmap:
+        symbol = symbolmap[symbol]
+ 
     return get_stock_info(symbol)
 
 @app.route('/stock', methods=["POST"])
@@ -72,6 +80,11 @@ def get_public_stock_info():
     symbol = str(text)
 
     print(str(command), symbol)
+
+    # do the symbol mapping here, it makes the smart working not working thing work before the cache
+    symbol = symbol.upper()
+    if symbol in symbolmap:
+        symbol = symbolmap[symbol]
     stock_text = get_stock_info(symbol)
     data = {"response_type": "in_channel", "text": stock_text}
     return Response(json.dumps(data), mimetype='application/json')
@@ -91,9 +104,6 @@ def get_private_graph():
 
 @cache.memoize(CACHE_TIME)
 def get_stock_info(symbol, recurse=True):
-    symbol = symbol.upper()
-    if symbol in symbolmap:
-        symbol = symbolmap[symbol]
     try:
         html = urlopen(yahoo_url.format(symbol, symbol))
         soup = BeautifulSoup(html, "lxml")
@@ -107,6 +117,8 @@ def get_stock_info(symbol, recurse=True):
             print('error getting pre market info')
             pre_market_info = 'error getting pre market info'
 
+        working.append(symbol) 
+        print('known working:' + str(working))
         return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format(
             symbol,
             change_emoji,
@@ -122,10 +134,23 @@ def get_stock_info(symbol, recurse=True):
             raise
         print('ticker not found, trying searching for it')
         symbols = json.load(urlopen(yahoo_search_url.format(symbol)))['quotes']
-        symbols = ['%s (%s)' % (x['symbol'], x['longname']) if 'longname' in x else x['symbol']for x in symbols ]
+        symbols_text = ['%s (%s)' % (x['symbol'], x['longname']) if 'longname' in x else x['symbol']for x in symbols ]
+        symbols = [x['symbol'] for x in symbols ]
+        for symbl in symbols:
+            if symbl in working:
+                symbolmap[symbol] = symbl
+                print('mapping %s to %s for now' % (symbl, symbol))
+                print(symbolmap)
+                break
+
         print('found' + str(symbols))
+        print('known working:' + str(working))
+        # we can't return now, another call to parse the symbol takes to long and slack times us out, so just show the user the correct symbol
+        # if one of the corrections matches a good one we'll use it next time since we did the mapping now
         #return get_stock_info(symbol, recurse=False)
-        return 'Ticker not found, did you mean any of: ' + ', '.join(symbols)
+        if symbols:
+            return 'Ticker not found, did you mean any of: ' + ', '.join(symbols)
+        return "Ticker not found, searching for similar one also didn't work, try using a working ticker symbol"
     except RateError:
         return "Rate limit reached, please try again later!"
 
