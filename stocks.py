@@ -18,6 +18,7 @@ app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 yahoo_url = "https://finance.yahoo.com/quote/{}?p={}"
+yahoo_search_url = 'https://query2.finance.yahoo.com/v1/finance/search?q={}'
 finviz_url = "https://finviz.com/chart.ashx?t={}&ty=c&ta=1&p=d&s=l.png"
 earnings_url = "https://whenisearnings.com/{}"
 
@@ -30,6 +31,11 @@ symbolmap = {
     'USD/EUR': 'USDEUR=X',
     'TESLA': 'TSLA',
     'BTC': 'BTC-USD',
+    'BITCOIN': 'BTC-USD',
+    'NSDQ': '^IXIC',
+    'NDSQ': '^IXIC',
+    'NASDAQ': '^IXIC',
+    'PFIZER': 'PFE',
 }
 
 class Error(Exception):
@@ -43,14 +49,16 @@ class RateError(Error):
 
 @app.route('/', methods=["GET"])
 def hello():
-    return "<h1>slashing the market is running</h1>"
+    return "<h1>slashing the market is running</h1>" + get_stock_info('tsla')
 
 @app.route('/stockforme', methods=["POST"])
 def get_private_stock_info():
+    print(str(request.form))
     token = request.form.get('token', None)
     command = request.form.get('command', None)
     text = request.form.get('text', None)
     symbol = str(text)
+    print(str(command), symbol)
 
     return get_stock_info(symbol)
 
@@ -80,7 +88,7 @@ def get_private_graph():
     return finviz_url.format(symbol)
 
 @cache.memoize(CACHE_TIME)
-def get_stock_info(symbol):
+def get_stock_info(symbol, recurse=True):
     symbol = symbol.upper()
     if symbol in symbolmap:
         symbol = symbolmap[symbol]
@@ -95,6 +103,7 @@ def get_stock_info(symbol):
             pre_market_info = get_pre_market_info(soup)
         except:
             print('error getting pre market info')
+            pre_market_info = 'error getting pre market info'
 
         return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format(
             symbol,
@@ -105,13 +114,24 @@ def get_stock_info(symbol):
             current_stock_info[3]) + pre_market_info
 
     except TickerError:
-        return "*{}* could not be found!".format(symbol)
+        # guess wanted ticker
+        # https://query2.finance.yahoo.com/v1/finance/search?q=csgn
+        if not recurse:
+            raise
+        print('ticker not found, trying searching for it')
+        symbols = json.load(urlopen(yahoo_search_url.format(symbol)))['quotes']
+        symbols = ['%s (%s)' % (x['symbol'], x['longname']) if 'longname' in x else x['symbol']for x in symbols ]
+        print('found' + str(symbols))
+        #return get_stock_info(symbol, recurse=False)
+        return 'Ticker not found, did you mean any of: ' + ', '.join(symbols)
     except RateError:
         return "Rate limit reached, please try again later!"
 
 def get_pre_market_info(soup):
     if 'Before hours:' in soup.text:
         pre = 'Before hours'
+    if 'Pre-Market' in soup.text:
+        pre = 'Pre-Market'
     elif 'After hours:' in soup.text:
         pre = 'After hours'
     else:
@@ -130,10 +150,17 @@ def get_current_data(soup):
         values = re.findall('([-+]?[0-9,.]+)', soup.findAll(id="quote-market-notice")[0].parent.text)
         # values 0 is current price, then absolute change, then procentual change then ??, ??
         current_value = float(values[0].replace(",", ""))
-        current_change = float(values[2])
+        try:
+            current_change = float(values[2])
+            year_range = [round(float(el.replace(",", "")), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
+            return (current_value, current_change, year_range[0], year_range[1])
+        except IndexError:
+            print('could not parse current data, indexerror ' + str(values))
+            raise TickerError
+        except ValueError:
+            print('could not parse current data, valueerror' + str(values))
+            raise TickerError
 
-        year_range = [round(float(el.replace(",", "")), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
-        return (current_value, current_change, year_range[0], year_range[1])
     else:
         raise TickerError
 
@@ -141,4 +168,7 @@ def format_percentage(percentage):
     return ("+" if percentage >= 0 else "") + str(round(percentage, 2))
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080)
+    try:
+        app.run(host="127.0.0.1", port=8080)
+    except Exception as e:
+        print('error!: ', e)
