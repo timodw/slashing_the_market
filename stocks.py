@@ -38,7 +38,6 @@ symbolmap = {
     'PFIZER': 'PFE',
 }
 
-
 class Error(Exception):
     pass
 
@@ -65,12 +64,14 @@ def get_private_stock_info():
 
 @app.route('/stock', methods=["POST"])
 def get_public_stock_info():
+    print(str(request.form))
     token = request.form.get('token', None)
     command = request.form.get('command', None)
     text = request.form.get('text', None)
     response_url = request.form.get('response_url', None)
     symbol = str(text)
 
+    print(str(command), symbol)
     stock_text = get_stock_info(symbol)
     data = {"response_type": "in_channel", "text": stock_text}
     return Response(json.dumps(data), mimetype='application/json')
@@ -131,7 +132,7 @@ def get_stock_info(symbol, recurse=True):
 def get_pre_market_info(soup):
     if 'Before hours:' in soup.text:
         pre = 'Before hours'
-    elif 'Pre-Market:' in soup.text:
+    if 'Pre-Market' in soup.text:
         pre = 'Pre-Market'
     elif 'After hours:' in soup.text:
         pre = 'After hours'
@@ -153,15 +154,22 @@ def get_current_data(soup):
         current_value = float(values[0].replace(",", ""))
         try:
             current_change = float(values[2])
-            year_range = [round(float(el.replace(",", "")), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
-            return (current_value, current_change, year_range[0], year_range[1])
         except IndexError:
             print('could not parse current data, indexerror ' + str(values))
             raise TickerError
         except ValueError:
             print('could not parse current data, valueerror' + str(values))
             raise TickerError
+        try:
+            year_range = [round(float(el.replace(",", "")), 2) for el in list(soup.findAll(attrs={"data-test":"FIFTY_TWO_WK_RANGE-value"}))[0].text.split() if el != "-"]
+        except IndexError:
+            print('could not parse year range, indexerror ')
+            year_range = (None, None)
+        except ValueError:
+            print('could not parse year range data, valueerror')
+            year_range = (None, None)
 
+        return (current_value, current_change, year_range[0], year_range[1])
     else:
         raise TickerError
 
