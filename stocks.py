@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, abort, Response
 from flask_caching import Cache
 import requests
-import urlopen
+from urllib.request import urlopen
 import datetime as dt
 from datetime import datetime
 import urllib.request
