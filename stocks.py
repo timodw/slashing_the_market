@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, abort, Response
 from flask_caching import Cache
 import requests
+import urlopen
 import datetime as dt
 from datetime import datetime
 import urllib.request
@@ -110,7 +111,7 @@ def get_stock_info(symbol, recurse=True):
         url = yahoo_url.format(symbol, symbol)
         print(url)
         html = requests.get(url).text
-        print('got decoded html:' + str(html))
+        #print('got decoded html:' + str(html))
         soup = BeautifulSoup(html, "lxml")
         current_stock_info = get_current_data(soup)
         change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
