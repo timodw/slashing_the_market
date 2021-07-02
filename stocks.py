@@ -4,7 +4,6 @@ import requests
 import datetime as dt
 from datetime import datetime
 import urllib.request
-from urllib.request import urlopen
 import json
 from bs4 import BeautifulSoup
 import secrets
@@ -105,19 +104,25 @@ def get_private_graph():
 @cache.memoize(CACHE_TIME)
 def get_stock_info(symbol, recurse=True):
     try:
-        html = urlopen(yahoo_url.format(symbol, symbol))
+        print('opening yahoo url')
+        url = yahoo_url.format(symbol, symbol)
+        print(url)
+        html = requests.get(url).text
+        print('got decoded html:' + str(html))
         soup = BeautifulSoup(html, "lxml")
         current_stock_info = get_current_data(soup)
         change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
         if symbol == "SNAP":
             change_emoji += ":xd:"
         try:
+            print('getting pre market info')
             pre_market_info = get_pre_market_info(soup)
         except:
             print('error getting pre market info')
             pre_market_info = 'error getting pre market info'
 
-        working.append(symbol) 
+        if symbol not in working:
+            working.append(symbol) 
         print('known working:' + str(working))
         return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format(
             symbol,
@@ -203,6 +208,6 @@ def format_percentage(percentage):
 
 if __name__ == "__main__":
     try:
-        app.run(host="127.0.0.1", port=8080)
+        app.run(host="0.0.0.0", port=8080)
     except Exception as e:
         print('error!: ', e)
