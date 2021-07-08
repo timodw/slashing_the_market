@@ -1,15 +1,10 @@
-from flask import Flask, request, jsonify, abort, Response
+from flask import Flask, request, Response
 from flask_caching import Cache
 import requests
 from urllib.request import urlopen
-import datetime as dt
-from datetime import datetime
-import urllib.request
 import json
 from bs4 import BeautifulSoup
-import secrets
 import re
-
 
 CACHE_TIME = 60 * 5 # Five minutes of caching
 
@@ -40,6 +35,9 @@ symbolmap = {
     'PFIZER': 'PFE',
 }
 
+headers = {
+    'User-Agent': 'slashing the market',
+}
 # keep al ist of working symbols
 working = []
 
@@ -69,7 +67,7 @@ def get_private_stock_info():
     symbol = symbol.upper()
     if symbol in symbolmap:
         symbol = symbolmap[symbol]
- 
+
     return get_stock_info(symbol)
 
 @app.route('/stock', methods=["POST"])
@@ -110,8 +108,10 @@ def get_stock_info(symbol, recurse=True):
         print('opening yahoo url')
         url = yahoo_url.format(symbol, symbol)
         print(url)
-        html = requests.get(url).text
+        response = requests.get(url, headers=headers)
+        print(response)
         #print('got decoded html:' + str(html))
+        html = response.text
         soup = BeautifulSoup(html, "lxml")
         current_stock_info = get_current_data(soup)
         change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
@@ -125,7 +125,7 @@ def get_stock_info(symbol, recurse=True):
             pre_market_info = 'error getting pre market info'
 
         if symbol not in working:
-            working.append(symbol) 
+            working.append(symbol)
         print('known working:' + str(working))
         return "*{}* {}\nCURRENT: {} *{}%*\n52W RANGE: {}-{}\n".format(
             symbol,
