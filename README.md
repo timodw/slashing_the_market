@@ -2,11 +2,11 @@
 
 This is a slack integrations that provides stock related commands
 
- - /stock TSLA 
+ - /stock TSLA
     - shows the current TSLA stock price
 - /graph TSLA
    - shows a graph with the TSLA stock price history
-   
+
 # development/testing
 
 ```
@@ -16,8 +16,8 @@ pip3 install -r requirements.txt
 python3 stocks.py
 ```
 ```
-echo -n text=TSLA| POST http://127.0.0.1:8080/stock -E
 echo -n text=EUR/USD| POST http://127.0.0.1:8080/stock -E
+curl -d "text=TSLA" http://127.0.0.1:8080/stock
 ```
 
 # installation
@@ -51,7 +51,7 @@ server {
           proxy_set_header Host $host ;
           proxy_set_header X-Real-IP $remote_addr ;
           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for ;
-          proxy_max_temp_file_size 0 ; 
+          proxy_max_temp_file_size 0 ;
           client_max_body_size 10m ;
           client_body_buffer_size 128k ;
           proxy_connect_timeout 90 ;
@@ -79,13 +79,13 @@ crontab -e
 
 browse to http://stocks.your_domain
 
-DNS: 
+DNS:
 Don't forget to set a CAA DSN record : @ CAA 0 issue "letsencrypt.org"
 And enable DNSSec
 
 # maintenance
 
 - Regularly check this repo for fixes
-- run a cron job that updates your pip dependencies 
-  - crontab -e 
+- run a cron job that updates your pip dependencies
+  - crontab -e
     - `0 8 * * * pip3 list --outdated --format=freeze | grep -v '^\-e' | cut -d = -f 1  | xargs -n1 pip3 install -U`
