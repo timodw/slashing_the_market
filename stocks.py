@@ -120,8 +120,8 @@ def get_stock_info(symbol, recurse=True):
         try:
             print('getting pre market info')
             pre_market_info = get_pre_market_info(soup)
-        except:
-            print('error getting pre market info')
+        except Exception as e:
+            print('error getting pre market info: %s', str(e))
             pre_market_info = 'error getting pre market info'
 
         if symbol not in working:
@@ -172,21 +172,29 @@ def get_pre_market_info(soup):
     else:
         return ""
 
-    values = list(soup.findAll(text="%s:" % pre)[0].parent.parent.parent.children)
+    values = list(soup.findAll(string="%s:" % pre)[0].parent.parent.parent.children)
     print(values)
-    pre_market_price = float(values[0].text.replace(",", ""))
-    pre_market_change = float(values[4].text.split(" (")[1][:-2])
+    #pre_market_price = float(values[0].text.replace(",", ""))
+    pre_market_price = float(soup.find("fin-streamer", {'data-field': 'preMarketPrice'}).text)
+    print(pre_market_price)
+    #pre_market_change = float(values[4].text.split(" (")[1][:-2])
+    pre_market_change = float(soup.find("fin-streamer", {'data-field': 'preMarketChangePercent'}).text.replace('(', '').
+                              replace(')', '').replace('%', ''))
     change_emoji = ":chart_with_downwards_trend:" if pre_market_change < 0 else ":chart_with_upwards_trend:"
     return "*{}* {}\nCURRENT: {} *{}%*\n".format(pre, change_emoji, pre_market_price,
                                                  format_percentage(pre_market_change))
 
 def get_current_data(soup):
     if len(soup.findAll(id="quote-market-notice")) > 0:
-        values = re.findall('([-+]?[0-9,.]+)', soup.findAll(id="quote-market-notice")[0].parent.text)
+        #values = re.findall('([-+]?[0-9,.]+)', soup.findAll(id="quote-market-notice")[0].parent.text)
         # values 0 is current price, then absolute change, then procentual change then ??, ??
-        current_value = float(values[0].replace(",", ""))
+        values =soup.find("fin-streamer", {'data-field': 'regularMarketPrice'}).text
+        print(values)
+        current_value = float(values.replace(",", ""))
         try:
-            current_change = float(values[2])
+            current_change = float(soup.find("fin-streamer", {'data-field': 'regularMarketChangePercent'}).text.replace('(', '').
+                              replace(')', '').replace('%', ''))
+            #current_change = float(values[2])
         except IndexError:
             print('could not parse current data, indexerror ' + str(values))
             raise TickerError
