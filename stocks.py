@@ -111,7 +111,7 @@ def get_stock_info(symbol, recurse=True):
         response = requests.get(url, headers=headers)
         print(response)
         html = response.text
-        print('got decoded html:' + str(html))
+        #print('got decoded html:' + str(html))
         soup = BeautifulSoup(html, "lxml")
         current_stock_info = get_current_data(soup, symbol)
         change_emoji = ":chart_with_downwards_trend:" if current_stock_info[1] < 0 else ":chart_with_upwards_trend:"
@@ -119,7 +119,7 @@ def get_stock_info(symbol, recurse=True):
             change_emoji += ":xd:"
         try:
             print('getting pre market info')
-            pre_market_info = get_pre_market_info(soup)
+            pre_market_info = get_pre_market_info(soup, symbol)
         except Exception as e:
             print('error getting pre market info: %s', str(e))
             pre_market_info = 'error getting pre market info'
@@ -162,7 +162,7 @@ def get_stock_info(symbol, recurse=True):
     except RateError:
         return "Rate limit reached, please try again later!"
 
-def get_pre_market_info(soup):
+def get_pre_market_info(soup, symbol):
     if 'Before hours:' in soup.text:
         pre = 'Before hours'
         prefix = 'pre'
@@ -175,9 +175,9 @@ def get_pre_market_info(soup):
     else:
         return ""
 
-    pre_market_price = float(soup.find("fin-streamer", {'data-field': prefix + 'MarketPrice'}).text)
+    pre_market_price = float(soup.find("fin-streamer", {'data-field': prefix + 'MarketPrice', 'data-symbol': symbol}).text)
     print(pre_market_price)
-    pre_market_change = float(soup.find("fin-streamer", {'data-field': prefix + 'MarketChangePercent'}).text.replace('(', '').
+    pre_market_change = float(soup.find("fin-streamer", {'data-field': prefix + 'MarketChangePercent', 'data-symbol': symbol}).text.replace('(', '').
                               replace(')', '').replace('%', ''))
     change_emoji = ":chart_with_downwards_trend:" if pre_market_change < 0 else ":chart_with_upwards_trend:"
     return "*{}* {}\nCURRENT: {} *{}%*\n".format(pre, change_emoji, pre_market_price,
@@ -191,7 +191,7 @@ def get_current_data(soup, symbol):
         print(values)
         current_value = float(values.replace(",", ""))
         try:
-            current_change = float(soup.find("fin-streamer", {'data-field': 'regularMarketChangePercent'}).text.replace('(', '').
+            current_change = float(soup.find("fin-streamer", {'data-field': 'regularMarketChangePercent', 'data-symbol': symbol}).text.replace('(', '').
                               replace(')', '').replace('%', ''))
             #current_change = float(values[2])
         except IndexError:
